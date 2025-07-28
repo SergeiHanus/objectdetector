@@ -1,0 +1,161 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+arrow_env/
+
+# PyTorch models and checkpoints
+*.pt
+*.pth
+*.ckpt
+models/
+runs/
+wandb/
+
+# TensorFlow/TensorFlow Lite models
+*.tflite
+*.pb
+*.h5
+saved_model/
+
+# Training data and datasets
+data/raw/
+data/train/
+data/val/
+data/test/
+data/images/
+data/labels/
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.tiff
+*.webp
+
+# Jupyter Notebooks checkpoints
+.ipynb_checkpoints
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Android Studio
+android-app/.gradle/
+android-app/build/
+android-app/.idea/
+android-app/local.properties
+android-app/captures/
+android-app/.externalNativeBuild/
+android-app/.cxx/
+*.iml
+*.apk
+*.aab
+
+# Gradle build files
+.gradle/
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Android SDK
+android-sdk/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.local
+
+# Large files and datasets
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Model artifacts and experimental outputs
+experiments/
+outputs/
+results/
+tensorboard_logs/
+
+# Cache directories
+.cache/
+.pytest_cache/
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+
+# Documentation builds
+docs/_build/
+site/
+
+# Specific exclusions for the repository
+# Exclude model files from circle-detection-app assets
+circle-detection-app/app/src/main/assets/*.onnx
+circle-detection-app/app/src/main/assets/*.tflite
+circle-detection-app/app/src/main/assets/*.pt
+circle-detection-app/app/src/main/assets/*.pth
+
+# Exclude large data files
+calibration_image_sample_data_20x128x128x3_float32.npy
+yolov8n.pt
+
+# Exclude data directories
+data/
+data (copy)/
+datasets/
+
+# Exclude model directories
+models/
+models_1024/
+models_square/
+
+# Exclude other app directories
+arrow-detection-app/
+android/
+
+# Exclude config directory
+config/
+
+# Exclude screenshots
+*.png 

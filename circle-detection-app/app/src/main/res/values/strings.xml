@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">Circle Detection</string>
+    <string name="app_title">Circle Detection</string>
+    <string name="select_image">Select Image</string>
+    <string name="process_image">Detect Circles</string>
+    <string name="selected_image">Selected image</string>
+    <string name="initial_message">Model loaded successfully\nCamera mode active - tap Start Camera to begin detection</string>
+    <string name="camera_mode">Camera Mode</string>
+    <string name="image_mode">Image Mode</string>
+    <string name="start_camera">Start Camera</string>
+    <string name="stop_camera">Stop Camera</string>
+    <string name="camera_permission_required">Camera permission is required for camera mode</string>
+    <string name="camera_started">Camera started - detecting circles every 0.5 seconds</string>
+    <string name="camera_stopped">Camera stopped</string>
+</resources> 

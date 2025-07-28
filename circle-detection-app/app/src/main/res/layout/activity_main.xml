@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@color/background_color">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/app_title"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:textColor="@color/primary_text"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Mode Switch Buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="16dp">
+
+        <Button
+            android:id="@+id/cameraModeButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/camera_mode"
+            android:layout_marginEnd="8dp"
+            android:backgroundTint="@color/primary_color" />
+
+        <Button
+            android:id="@+id/imageModeButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/image_mode"
+            android:layout_marginStart="8dp"
+            android:backgroundTint="@color/secondary_color" />
+
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@drawable/image_border">
+
+        <!-- Camera Preview Container -->
+<!-- Update your camera preview container in activity_main.xml -->
+
+        <FrameLayout
+            android:id="@+id/cameraPreviewContainer"
+            android:layout_width="320dp"
+            android:layout_height="320dp"
+            android:layout_gravity="center"
+            android:background="#000000">
+            
+            <!-- Camera preview -->
+            <androidx.camera.view.PreviewView
+                android:id="@+id/cameraPreview"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="#000000" />
+            
+            <!-- Detection overlay - MUST be identical size and position -->
+            <com.example.circledetection.DetectionOverlayView
+                android:id="@+id/overlayView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="invisible" />
+                
+            <!-- Optional: Add crosshairs for debugging alignment -->
+            <View
+                android:layout_width="20dp"
+                android:layout_height="2dp"
+                android:layout_gravity="center"
+                android:background="#FF0000"
+                android:alpha="0.7" />
+            
+            <View
+                android:layout_width="2dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
+                android:background="#FF0000"
+                android:alpha="0.7" />
+                
+        </FrameLayout>
+
+        <!-- Image View (for image mode) -->
+        <ImageView
+            android:id="@+id/imageView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerInside"
+            android:contentDescription="@string/selected_image" />
+
+        <com.example.circledetection.DetectionOverlayView
+            android:id="@+id/imageOverlayView"
+            android:layout_width="320dp"
+            android:layout_height="320dp"
+            android:layout_gravity="center"
+            android:background="@android:color/transparent" />
+
+    </FrameLayout>
+
+    <!-- Image Mode Controls -->
+    <LinearLayout
+        android:id="@+id/imageModeControls"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="16dp"
+        android:visibility="gone">
+
+        <Button
+            android:id="@+id/selectImageButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/select_image"
+            android:layout_marginEnd="8dp"
+            android:backgroundTint="@color/primary_color" />
+
+        <Button
+            android:id="@+id/processButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/process_image"
+            android:layout_marginStart="8dp"
+            android:backgroundTint="@color/secondary_color" />
+
+    </LinearLayout>
+
+    <!-- Camera Mode Controls -->
+    <LinearLayout
+        android:id="@+id/cameraModeControls"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="16dp">
+
+        <Button
+            android:id="@+id/startCameraButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/start_camera"
+            android:layout_marginEnd="8dp"
+            android:backgroundTint="@color/primary_color" />
+
+        <Button
+            android:id="@+id/stopCameraButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/stop_camera"
+            android:layout_marginStart="8dp"
+            android:backgroundTint="@color/secondary_color"
+            android:enabled="false" />
+
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@drawable/results_background">
+
+        <TextView
+            android:id="@+id/resultsText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="16dp"
+            android:text="@string/initial_message"
+            android:textColor="@color/secondary_text"
+            android:textSize="14sp"
+            android:fontFamily="monospace" />
+
+    </ScrollView>
+
+</LinearLayout> 
