@@ -28,7 +28,7 @@ def check_requirements():
         print("❌ Error: This script must be run from the project root directory")
         print("   Expected structure: yolox/, data/, src/, config/ at same level")
         print("   Current directory:", os.getcwd())
-        print("   Please run from: /data/code/image-detector/")
+        print("   Please run from:train_yolox/")
         sys.exit(1)
     
     print("✅ Project structure verified")

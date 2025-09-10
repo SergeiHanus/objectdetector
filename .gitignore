@@ -136,10 +136,6 @@ circle-detection-app/app/src/main/assets/*.tflite
 circle-detection-app/app/src/main/assets/*.pt
 circle-detection-app/app/src/main/assets/*.pth
 
-# Exclude large data files
-calibration_image_sample_data_20x128x128x3_float32.npy
-yolov8n.pt
-
 # Exclude data directories
 data/
 data (copy)/
@@ -147,8 +143,6 @@ datasets/
 
 # Exclude model directories
 models/
-models_1024/
-models_square/
 
 # Exclude other app directories
 arrow-detection-app/
@@ -159,3 +153,6 @@ config/
 
 # Exclude screenshots
 *.png 
+
+#Exclude exps directory
+train_yolox/exps/

@@ -1,10 +1,19 @@
-# YOLOX Circle Detection Training Pipeline
+# YOLOX Object Detection Training Pipeline
 
-This document describes the YOLOX-based training pipeline for circle detection, which replaces the previous YOLOv8 training approach.
+This document describes the YOLOX-based training pipeline for object detection, which supports any object class and replaces the previous YOLOv8 training approach.
+
+## 📍 Working Directory
+
+**Important**: All commands and scripts in this pipeline must be executed from the `train_yolox` directory. All file paths referenced in this documentation are relative to this directory.
+
+```bash
+# Always start from the train_yolox directory
+cd /data/code/image-detector/train_yolox/
+```
 
 ## 🎯 Overview
 
-**YOLOX** is a high-performance anchor-free YOLO implementation that exceeds YOLOv3~v5 in performance. This pipeline uses **YOLOX-Small** model specifically optimized for circle detection with the following features:
+**YOLOX** is a high-performance anchor-free YOLO implementation that exceeds YOLOv3~v5 in performance. This pipeline uses **YOLOX-Small** model optimized for object detection with the following features:
 
 **Note**: This pipeline uses a dedicated `yolox` virtual environment to avoid conflicts with existing dependencies.
 
@@ -14,49 +23,35 @@ This document describes the YOLOX-based training pipeline for circle detection, 
 - **Export**: ONNX format for mobile deployment
 - **Dataset**: COCO format (converted from YOLO format)
 - **Environment**: Isolated `yolox` virtual environment
+- **Multi-Class Support**: Automatically detects class names from `classes.txt`
+- **Flexible Dataset Paths**: Parameterized data directories
 
-## 📁 New Scripts
+## 📁 Scripts Overview
 
 The YOLOX pipeline introduces several new scripts that work alongside your existing project structure:
 
 ```
 src/
 ├── yolox_setup.py          # Install YOLOX and dependencies
+├── yolox_resize.py         # Resize images with letterboxing and adjust coordinates
 ├── yolox_data_prep.py      # Prepare dataset for YOLOX training
-├── yolox_train.py          # Train YOLOX model for circle detection
-└── yolox_test.py           # Test trained YOLOX model
+├── yolox_train.py          # Train YOLOX model for object detection
+├── yolox_test.py           # Test trained YOLOX model
+└── yolox_export.py         # Export trained model to ONNX format
 ```
 
-## 🔧 Environment Management
+## 🚀 Complete Training Workflow
 
-### Virtual Environment Setup
+**Important**: All commands in this workflow must be executed from the `train_yolox` directory. All file paths are relative to this directory.
 
-The YOLOX pipeline uses a dedicated virtual environment to ensure clean dependency management:
+### Step 1: Environment Setup
 
-```bash
-# Create YOLOX environment
-python3 -m venv yolox
-
-# Activate environment (required for all operations)
-source yolox/bin/activate
-
-# Deactivate when done
-deactivate
-```
-
-### Environment Requirements
-
-- **Python**: 3.7+ (3.11 recommended)
-- **CUDA**: Required for GPU training
-- **Dependencies**: All requirements automatically installed via `requirements_yolox.txt`
-- **PyTorch**: Automatically installed first during setup (required for YOLOX compilation)
-
-## 🚀 Quick Start
-
-### Step 0: Create YOLOX Virtual Environment
+#### Create and Activate Virtual Environment
 
 ```bash
-# From project root (/data/code/image-detector/)
+# Navigate to train_yolox directory first
+cd train_yolox/
+
 # Create new virtual environment for YOLOX
 python3 -m venv yolox
 
@@ -70,12 +65,9 @@ pip install --upgrade pip
 python --version
 ```
 
-### Step 1: Setup YOLOX Environment
+#### Install YOLOX and Dependencies
 
 ```bash
-# From project root (/data/code/image-detector/)
-source yolox/bin/activate
-
 # Install YOLOX and dependencies
 python src/yolox_setup.py
 ```
@@ -88,104 +80,170 @@ This script will:
 - Create necessary configuration files
 - Verify the setup
 
-### Step 2: Prepare Dataset
+**Environment Requirements:**
+- **Python**: 3.7+ (3.11 recommended)
+- **CUDA**: Required for GPU training
+- **Dependencies**: All requirements automatically installed via `requirements_yolox.txt`
+- **PyTorch**: Automatically installed first during setup (required for YOLOX compilation)
+
+### Step 2: Data Preparation
+
+#### Prerequisites
+
+Your dataset directory must contain:
+- Images (`.jpg`, `.JPG`, `.png`, `.PNG`)
+- YOLO format labels (`.txt` files)
+- **`classes.txt` file** with class names (one per line)
+
+The pipeline automatically detects the class name from the first line of `classes.txt` and creates the dataset directory accordingly.
+
+#### Resize Images (if needed)
+
+```bash
+# Resize images to 640x640 with letterboxing
+python src/yolox_resize.py
+```
+
+**Letterboxing Process:**
+1. **Scale**: Images are scaled down to fit within 640x640 while preserving aspect ratio
+2. **Pad**: Black padding is added to reach exactly 640x640 dimensions
+3. **Coordinate Adjustment**: YOLO coordinates are automatically adjusted for the new scale and padding
+
+**Example**: A 1280x960 image becomes:
+- Scale factor: 0.667 (640/960)
+- New size after scaling: 853x640  
+- Padding: 106 pixels on left/right to center the image
+- Final size: 640x640 with black bars on sides
+
+#### Convert Dataset to COCO Format
 
 ```bash
 # Convert YOLO labels to COCO format and create dataset splits
-python src/yolox_data_prep.py
+python src/yolox_data_prep.py --raw-dir data/raw_resized
 ```
 
-This script will:
-- Organize your `data/raw/` images and labels into train/val/test splits
-- Convert YOLO format labels to COCO format (required by YOLOX)
-- Create `config/yolox_dataset.yaml` configuration
-- Verify dataset integrity
+**What the Data Prep Script Does:**
+- **Class Detection**: Reads the first class name from `classes.txt` (e.g., "probe")
+- **Dynamic Configuration**: Creates `exps/yolox_s_{class_name}.py` configuration file
+- **Dataset Creation**: Creates `YOLOX/datasets/<class_name>_dataset/` directory
+- **Data Organization**: Organizes images and labels into train/val/test splits (70/20/10)
+- **Format Conversion**: Converts YOLO format labels to COCO format (required by YOLOX)
+- **Coordinate Validation**: Verifies that coordinate conversion is accurate
+
+#### Example Directory Structure
+
+```
+data/raw_resized/
+├── classes.txt          # Contains class names (e.g., "probe", "circle", "square")
+├── image001.jpg         # Your images
+├── image001.txt         # YOLO format labels
+├── image002.jpg
+├── image002.txt
+└── ...
+```
+
+#### Data Preparation Script Options
+
+```bash
+# Basic usage with default data directory (auto-detects class from classes.txt)
+python src/yolox_data_prep.py
+
+# Specify custom source directory containing images, labels, and classes.txt
+python src/yolox_data_prep.py --raw-dir data/Probes
+
+# Specify both source and target directories
+python src/yolox_data_prep.py --raw-dir data/Probes --data-dir YOLOX/datasets/my_probes
+
+# Verify prepared dataset
+python src/yolox_data_prep.py --verify
+
+# Validate coordinate conversion accuracy
+python src/yolox_data_prep.py --validate-coords --raw-dir data/Probes
+
+# Combine options
+python src/yolox_data_prep.py --raw-dir data/custom_dataset --data-dir YOLOX/datasets/custom_objects --validate-coords
+```
+
+**Available Options:**
+- `--raw-dir`: Path to directory containing raw images, YOLO labels, and classes.txt (default: `data/raw_resized`)
+- `--data-dir`: Target dataset directory. If not specified, defaults to `YOLOX/datasets/<class_name>_dataset`
+- `--verify`: Verify the prepared dataset structure and file counts
+- `--validate-coords`: Validate that COCO coordinates correctly correspond to YOLO coordinates
 
 ### Step 3: Train YOLOX Model
 
 ```bash
-# Train YOLOX-Small model for circle detection
-python src/yolox_train.py
+# Train YOLOX-Small model 
+python src/yolox_train.py --data-dir YOLOX/datasets/probe_dataset --epochs 50 --batch 8
 ```
 
-Training features:
+**Training Features:**
 - **GPU Training**: Automatically uses CUDA if available
-- **Fixed Resolution**: 640x640 pixels (optimal for circle detection)
-- **Batch Size**: Configurable (default: 8)
-- **Epochs**: Configurable (default: 100)
-- **Early Stopping**: Built-in with configurable patience
+- **Fixed Resolution**: 640x640 pixels (optimal for object detection)
+- **Batch Size**: Configurable (default: 8, memory optimized)
+- **Epochs**: Configurable (default: 80)
+- **Dynamic Class Support**: Adapts to any object class from your dataset
+
+**Available Training Options:**
+- `--data-dir`: Path to dataset directory (auto-detects if not specified)
+- `--epochs`: Number of training epochs (default: 100)
+- `--batch`: Batch size per GPU (default: 2, memory optimized)
+- `--workers`: Data loading workers (default: 1, memory optimized)
+- `--setup`: Setup YOLOX repository and dependencies
 
 ### Step 4: Test Model
 
-```bash
-# Test the trained model on validation images
-python src/yolox_test.py
-
-# Or test on custom directory
-python src/yolox_test.py --test-dir data/test/images
-
-# Validate dataset structure
-python src/yolox_test.py --validate
-```
-
-#### Example: Test a single image
+#### Test with PyTorch Checkpoint
 
 ```bash
 source yolox/bin/activate
+# Test with PyTorch checkpoint
 python src/yolox_test.py \
-  --model /data/code/image-detector/train_yolox/YOLOX/YOLOX_outputs/yolox_s_circle/best_ckpt.pth \
-  --image /data/code/image-detector/train_yolox/YOLOX/datasets/circle_dataset/test/images/20250723_102806.jpg \
-  --confidence 0.3   --show
+  --model YOLOX/YOLOX_outputs/yolox_s_circle/best_ckpt.pth \
+  --image YOLOX/datasets/probe_dataset/test/images/IMG_0199.JPG \
+  --confidence 0.3 --show
 ```
 
-Results are written to `models/yolox_test_results/` (summary at `test_summary.txt`; result image is saved when detections are found).
-
-### Step 5: Export to ONNX (fixed 640x640 input)
-
-Export your trained checkpoint to an ONNX model that accepts only 1x3x640x640 inputs (static shape). Omit `--dynamic` to keep the shape fixed.
+#### Test with ONNX Model
 
 ```bash
-/data/code/image-detector/train_yolox/yolox/bin/python \
-/data/code/image-detector/train_yolox/YOLOX/tools/export_onnx.py \
--f /data/code/image-detector/train_yolox/exps/yolox_s_circle.py \
--c /data/code/image-detector/train_yolox/YOLOX/YOLOX_outputs/yolox_s_circle/best_ckpt.pth \
---output-name /data/code/image-detector/train_yolox/models/yolox_circle_detector.onnx \
--o 17
+# Test with ONNX model (faster inference)
+python src/yolox_test_onnx.py \
+  --model models/yolox_probe_detector.onnx \
+  --image YOLOX/datasets/probe_dataset/test/images/IMG_0199.JPG \
+  --show --confidence 0.5
 ```
 
-Notes:
-- The exp sets `test_size=(640, 640)`, so the exported model input is fixed to 1x3x640x640.
-- If ONNX simplifier errors, add `--no-onnxsim` to skip simplification.
+Results are written to `models/yolox_test_results/` (summary at `test_summary.txt`; result images are saved when detections are found).
 
-## ⚙️ Configuration
+### Step 5: Export to ONNX
 
-### Training Parameters
-
-The YOLOX training script supports several configurable parameters:
+Export your trained checkpoint to an ONNX model that accepts only 1x3x640x640 inputs (static shape).
 
 ```bash
-python src/yolox_train.py --epochs 150 --batch 16 --workers 8
+# Export trained model to ONNX format (run from train_yolox directory)
+python src/yolox_export.py \
+  --model YOLOX/YOLOX_outputs/yolox_s_circle/best_ckpt.pth \
+  --output models/yolox_probe_detector.onnx \
+  --exp exps/yolox_s_circle.py
 ```
 
-**Available Options:**
-- `--epochs`: Number of training epochs (default: 100)
-- `--batch`: Batch size per GPU (default: 8)
-- `--workers`: Data loading workers (default: 4)
-- `--setup`: Setup YOLOX repository and dependencies
+**Path Information:**
+- All paths are relative to the `train_yolox` directory where the script is executed
+- `--model`: Path to trained checkpoint (relative to execution directory)
+- `--output`: Output ONNX file path (relative to execution directory) 
+- `--exp`: Experiment configuration file (relative to execution directory)
 
-### Model Configuration
+**Export Options:**
+- `--opset`: ONNX opset version (default: 17)
+- `--dynamic`: Export with dynamic batch size (default: fixed batch size)
+- `--no-simplify`: Skip ONNX simplification step
+- `--decode-in-inference`: Include decoding in the exported model
 
-YOLOX configurations are automatically created in the `exps/` directory:
-
-- `exps/yolox_s_base.py`: Base YOLOX-Small configuration
-- `exps/yolox_s_circle.py`: Circle detection specific configuration
-
-**Key Configuration Features:**
-- Single class detection (circle only)
-- 640x640 input resolution
-- SGD optimizer with momentum
-- Step learning rate scheduling
-- ONNX export configuration
+**Notes:**
+- The exp sets `test_size=(640, 640)`, so the exported model input is fixed to 1x3x640x640
+- If ONNX simplifier errors, add `--no-simplify` to skip simplification
+- Output model name can reflect your class (e.g., `yolox_probe_detector.onnx`, `yolox_circle_detector.onnx`)
 
 ## 📊 Dataset Format
 
@@ -194,25 +252,32 @@ YOLOX configurations are automatically created in the `exps/` directory:
 Your existing YOLO format labels are supported:
 
 ```
-# data/raw/20250723_102136.txt
+# data/Probes/IMG_0199.txt
 0 0.117167 0.146875 0.153667 0.102750
 0 0.912667 0.149750 0.134667 0.101000
 ```
 
 **Format**: `class_id x_center y_center width height`
 - All values are normalized (0.0 to 1.0)
-- `class_id` should be 0 for circles
+- `class_id` should be 0 for your object class (e.g., circles, probes, squares)
+
+**Classes File**: `classes.txt` defines your object classes:
+
+```
+# data/Probes/classes.txt
+probe
+```
 
 ### Output Format (COCO)
 
-YOLOX requires COCO format annotations, automatically generated:
+YOLOX requires COCO format annotations, automatically generated with your class name:
 
 ```json
 {
   "images": [
     {
       "id": 0,
-      "file_name": "20250723_102136.jpg",
+      "file_name": "IMG_0199.JPG",
       "width": 640,
       "height": 640
     }
@@ -230,10 +295,45 @@ YOLOX requires COCO format annotations, automatically generated:
   "categories": [
     {
       "id": 0,
-      "name": "circle",
-      "supercategory": "shape"
+      "name": "probe",
+      "supercategory": "object"
     }
   ]
 }
 ```
 
+## 🎯 Multi-Class Support
+
+The pipeline automatically adapts to any object class:
+
+1. **Place your class name** in `classes.txt` (first line is used)
+2. **Dataset directory** is automatically named `YOLOX/datasets/<class_name>_dataset`
+3. **COCO annotations** use your class name instead of hardcoded values
+4. **Model training** adapts to your specific object type
+
+**Examples:**
+- `classes.txt` contains "circle" → creates `YOLOX/datasets/circle_dataset/`
+- `classes.txt` contains "probe" → creates `YOLOX/datasets/probe_dataset/`
+- `classes.txt` contains "square" → creates `YOLOX/datasets/square_dataset/`
+
+## ⚙️ Configuration
+
+### Model Configuration
+
+YOLOX configurations are **dynamically created** during data preparation based on your class name:
+
+- `exps/yolox_s_base.py`: Base YOLOX-Small configuration (created automatically)
+- `exps/yolox_s_{class_name}.py`: Class-specific configuration (auto-generated from `classes.txt`)
+
+**Dynamic Configuration Features:**
+- **Auto-adapts to your class**: Reads class name from `classes.txt` and creates `yolox_s_{class_name}.py`
+- **Single class detection**: Automatically configured for your specific object type
+- **640x640 input resolution**: Fixed optimal resolution for object detection
+- **Auto dataset path detection**: Automatically configures dataset paths
+- **Memory-optimized settings**: Training stability and performance optimization
+- **ONNX export configuration**: Ready for mobile deployment
+
+**Examples:**
+- `classes.txt` contains "probe" → creates `exps/yolox_s_probe.py`
+- `classes.txt` contains "circle" → creates `exps/yolox_s_circle.py`
+- `classes.txt` contains "square" → creates `exps/yolox_s_square.py`

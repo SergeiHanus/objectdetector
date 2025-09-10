@@ -26,7 +26,7 @@ def test_yolox_model(model_path, image_path=None, confidence_threshold=0.3, show
         print("❌ Error: This script must be run from the project root directory")
         print("   Expected structure: yolox/, data/, src/, config/ at same level")
         print("   Current directory:", os.getcwd())
-        print("   Please run from: /data/code/image-detector/")
+        print("   Please run from: train_yolox/")
         sys.exit(1)
     
     print("🎯 === YOLOX Circle Detection Testing ===")

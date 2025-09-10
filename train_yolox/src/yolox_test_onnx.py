@@ -7,8 +7,8 @@ Run inference with an exported ONNX model on a single image at 640x640.
 Example:
   source yolox/bin/activate
   python src/yolox_test_onnx.py \
-    --model /data/code/image-detector/train_yolox/models/yolox_circle_detector.onnx \
-    --image /data/code/image-detector/train_yolox/YOLOX/datasets/circle_dataset/test/images/20250723_102806.jpg \
+    --model models/yolox_circle_detector.onnx \
+    --image YOLOX/datasets/circle_dataset/test/images/20250723_102806.jpg \
     --confidence 0.3 --show
 """
 
