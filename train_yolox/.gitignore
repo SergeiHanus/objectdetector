@@ -1,0 +1,17 @@
+# Exclude configs and datasets
+config/
+data/
+
+# Python cache under exps
+exps/__pycache__/
+
+# Models: ignore everything except best.pth and ONNX files
+models/*
+!models/*.onnx
+!models/best.pth
+
+# Ignore YOLOX repo and virtual environment
+YOLOX/
+yolox/
+
+

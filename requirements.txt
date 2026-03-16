@@ -1,0 +1,31 @@
+# Arrow Detection Project Dependencies
+# Optimized for Python 3.11 (best compatibility)
+
+# Computer Vision and Machine Learning
+ultralytics>=8.0.0
+opencv-python>=4.8.0
+torch>=2.0.0
+torchvision>=0.15.0
+numpy>=1.24.0,<2.0.0
+pillow>=9.5.0
+matplotlib>=3.7.0
+
+# Data Annotation (fixed version for Qt compatibility)
+labelImg==1.8.6
+
+# Data Processing and Augmentation
+albumentations>=1.3.0
+scikit-learn>=1.3.0
+
+# Mobile Deployment (TensorFlow works with Python 3.11)
+# Note: TensorFlow Lite is included in TensorFlow package since 2.x
+tensorflow>=2.13.0
+
+# Development and Utilities
+jupyter>=1.0.0
+notebook>=6.5.0
+ipywidgets>=8.0.0
+
+# Additional utilities
+tqdm>=4.65.0
+pyyaml>=6.0 
