@@ -28,21 +28,24 @@ def train_yolox_circle_detector(epochs=100, batch_size=2, num_workers=1):
         print("   Please run from: /data/code/image-detector/")
         sys.exit(1)
     
-    # Check CUDA availability
+    # Device: CUDA > MPS (Apple Silicon) > CPU
     import torch
-    if not torch.cuda.is_available():
-        print("❌ Error: CUDA is required for YOLOX training")
-        print("   Please ensure CUDA is installed and PyTorch supports it")
-        sys.exit(1)
+    if torch.cuda.is_available():
+        device = "cuda"
+        device_desc = f"CUDA ({torch.cuda.get_device_name(0)}, {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB)"
+    elif getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
+        device = "mps"
+        device_desc = "MPS (Apple Silicon)"
+    else:
+        device = "cpu"
+        device_desc = "CPU"
     
     print("🎯 === YOLOX Circle Detection Training ===")
     print(f"Model: YOLOX-Small")
     print(f"Image size: 640x640 pixels")
     print(f"Epochs: {epochs}")
     print(f"Batch size: {batch_size}")
-    print(f"Device: CUDA (GPU)")
-    print(f"GPU: {torch.cuda.get_device_name(0)}")
-    print(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
+    print(f"Device: {device_desc}")
     
     # Verify dataset exists
     if not os.path.exists('YOLOX/datasets/circle_dataset/train/images') or not os.path.exists('YOLOX/datasets/circle_dataset/val/images'):
@@ -72,20 +75,26 @@ def train_yolox_circle_detector(epochs=100, batch_size=2, num_workers=1):
     exp = Exp()
     exp.verify_dataset_config()
     
-    # Training command
-    train_cmd = f"""
-    PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True python tools/train.py -f {os.path.abspath('exps/yolox_s_circle.py')} \
-        -d 1 -b {batch_size} \
-        --fp16
-    """
+    # Training command (--fp16 only for CUDA)
+    env = os.environ.copy()
+    if device != "cuda":
+        env.pop("PYTORCH_CUDA_ALLOC_CONF", None)
+    else:
+        env.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+    import subprocess
+    exp_path = os.path.abspath('exps/yolox_s_circle.py')
+    cmd = [sys.executable, "tools/train.py", "-f", exp_path, "-d", "1", "-b", str(batch_size)]
+    if device == "cuda":
+        cmd.append("--fp16")
     
-    print(f"Training command: {train_cmd}")
+    print(f"Training command: {' '.join(cmd)}")
     
-    # Change to YOLOX directory and run training
     if os.path.exists('YOLOX'):
         os.chdir('YOLOX')
-        os.system(train_cmd)
+        rc = subprocess.call(cmd, env=env)
         os.chdir('..')
+        if rc != 0:
+            sys.exit(rc)
     else:
         print("❌ Error: YOLOX directory not found")
         print("   Please clone YOLOX repository first:")

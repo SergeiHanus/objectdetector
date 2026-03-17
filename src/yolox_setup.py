@@ -1,13 +1,21 @@
 #!/usr/bin/env python3
 """
 YOLOX Setup Script
-Install YOLOX and prepare the environment for circle detection training
+Install YOLOX and prepare the environment for circle detection training.
+Platform-aware: CUDA on Linux, default PyTorch (MPS/CPU) on macOS.
 """
 
 import os
 import sys
 import subprocess
 import shutil
+import platform
+
+# Pin YOLOX revision for reproducible remote setup (0.3.0 release)
+YOLOX_REVISION = "0.3.0"
+
+def is_darwin():
+    return platform.system() == "Darwin"
 
 def check_requirements():
     """Check if basic requirements are met"""
@@ -53,64 +61,59 @@ def check_requirements():
     else:
         print("✅ Python development headers found")
     
-    # Check CUDA availability
+    # Check device availability (CUDA / MPS / CPU)
     try:
         import torch
         if torch.cuda.is_available():
             print(f"✅ CUDA available: {torch.cuda.get_device_name(0)}")
             print(f"   GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
+        elif is_darwin() and getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
+            print("✅ MPS (Apple Silicon) available")
         else:
-            print("⚠️  Warning: CUDA not available")
-            print("   YOLOX training will be very slow on CPU")
+            print("⚠️  Warning: No GPU backend (CUDA/MPS); YOLOX will use CPU")
     except ImportError:
         print("⚠️  Warning: PyTorch not installed")
         print("   Will install during setup")
 
 def install_dependencies():
-    """Install YOLOX dependencies"""
+    """Install YOLOX dependencies. On macOS use default PyTorch (MPS/CPU); on Linux try CUDA first."""
     
     print("\n📦 Installing YOLOX dependencies...")
     
-    # Install PyTorch first with pre-compiled wheels (GPU version)
-    print("🔧 Installing PyTorch with GPU support...")
-    try:
-        # Install GPU version of PyTorch with CUDA support
-        subprocess.run([
-            sys.executable, "-m", "pip", "install", 
-            "torch", "torchvision", "torchaudio", 
-            "--index-url", "https://download.pytorch.org/whl/cu118"
-        ], check=True, capture_output=True, text=True)
-        print("✅ PyTorch GPU version installed successfully")
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Error installing PyTorch GPU version: {e}")
-        print(f"   Error output: {e.stderr}")
-        print("   Trying alternative GPU installation method...")
-        
-        # Fallback: try installing with different CUDA version
+    if is_darwin():
+        # macOS: install default PyTorch (includes MPS on Apple Silicon)
+        print("🔧 Installing PyTorch (default; MPS on Apple Silicon)...")
         try:
             subprocess.run([
-                sys.executable, "-m", "pip", "install", 
-                "torch", "torchvision", "torchaudio", 
-                "--index-url", "https://download.pytorch.org/whl/cu117"
+                sys.executable, "-m", "pip", "install",
+                "torch", "torchvision", "torchaudio",
             ], check=True, capture_output=True, text=True)
-            print("✅ PyTorch GPU version installed successfully with CUDA 11.7")
-        except subprocess.CalledProcessError as e2:
-            print(f"❌ CUDA 11.7 installation also failed: {e2}")
-            print("   Trying CPU version as fallback...")
-            
-            # Final fallback: CPU version
+            print("✅ PyTorch installed successfully")
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Error installing PyTorch: {e}")
+            print_manual_pytorch_steps()
+            sys.exit(1)
+    else:
+        # Linux: try CUDA first, then CPU fallback
+        print("🔧 Installing PyTorch with GPU support (CUDA)...")
+        try:
+            subprocess.run([
+                sys.executable, "-m", "pip", "install",
+                "torch", "torchvision", "torchaudio",
+                "--index-url", "https://download.pytorch.org/whl/cu118"
+            ], check=True, capture_output=True, text=True)
+            print("✅ PyTorch GPU version installed successfully")
+        except subprocess.CalledProcessError as e:
+            print(f"⚠️  CUDA install failed, trying CPU fallback: {e}")
             try:
                 subprocess.run([
-                    sys.executable, "-m", "pip", "install", 
-                    "torch", "torchvision", "torchaudio", 
+                    sys.executable, "-m", "pip", "install",
+                    "torch", "torchvision", "torchaudio",
                     "--index-url", "https://download.pytorch.org/whl/cpu"
                 ], check=True, capture_output=True, text=True)
-                print("✅ PyTorch CPU version installed as fallback")
-                print("   Note: Training will be slower on CPU")
-            except subprocess.CalledProcessError as e3:
-                print(f"❌ All PyTorch installation methods failed")
-                print(f"   Last error: {e3}")
-                print("\n🔧 PyTorch installation failed. Here are manual steps to resolve:")
+                print("✅ PyTorch CPU version installed")
+            except subprocess.CalledProcessError as e2:
+                print(f"❌ PyTorch installation failed: {e2}")
                 print_manual_pytorch_steps()
                 sys.exit(1)
     
@@ -137,13 +140,14 @@ def setup_yolox():
         
         # Check if it's a git repository
         if os.path.exists('YOLOX/.git'):
-            print("🔄 Updating YOLOX repository...")
+            print("🔄 Checking YOLOX revision (pinned)...")
             os.chdir('YOLOX')
             try:
-                subprocess.run(["git", "pull"], check=True, capture_output=True, text=True)
-                print("✅ YOLOX repository updated")
-            except subprocess.CalledProcessError as e:
-                print(f"⚠️  Warning: Could not update YOLOX: {e}")
+                subprocess.run(["git", "fetch", "origin", "tag", YOLOX_REVISION, "--no-tags"], check=True, capture_output=True, text=True, timeout=60)
+                subprocess.run(["git", "checkout", YOLOX_REVISION], check=True, capture_output=True, text=True)
+                print(f"✅ YOLOX at {YOLOX_REVISION}")
+            except (subprocess.CalledProcessError, FileNotFoundError) as e:
+                print(f"⚠️  Could not pin to {YOLOX_REVISION}: {e}")
             os.chdir('..')
         else:
             print("⚠️  Warning: YOLOX directory exists but is not a git repository")
@@ -207,19 +211,28 @@ def print_manual_pytorch_steps():
     print("=" * 50)
 
 def clone_yolox():
-    """Clone YOLOX repository"""
+    """Clone YOLOX repository and check out pinned revision."""
     
     print("📥 Cloning YOLOX repository...")
     
     try:
         subprocess.run([
-            "git", "clone", "https://github.com/Megvii-BaseDetection/YOLOX.git"
-        ], check=True, capture_output=True, text=True)
-        print("✅ YOLOX repository cloned")
+            "git", "clone", "--depth", "1", "--branch", YOLOX_REVISION,
+            "https://github.com/Megvii-BaseDetection/YOLOX.git"
+        ], check=True, capture_output=True, text=True, timeout=120)
+        print(f"✅ YOLOX repository cloned at {YOLOX_REVISION}")
     except subprocess.CalledProcessError as e:
-        print(f"❌ Error cloning YOLOX: {e}")
-        print(f"   Error output: {e.stderr}")
-        sys.exit(1)
+        # Fallback: clone without branch (e.g. tag may need full clone)
+        try:
+            subprocess.run(["git", "clone", "https://github.com/Megvii-BaseDetection/YOLOX.git"], check=True, capture_output=True, text=True, timeout=120)
+            os.chdir("YOLOX")
+            subprocess.run(["git", "checkout", YOLOX_REVISION], check=True, capture_output=True, text=True)
+            os.chdir("..")
+            print(f"✅ YOLOX repository cloned and checked out {YOLOX_REVISION}")
+        except subprocess.CalledProcessError as e2:
+            print(f"❌ Error cloning YOLOX: {e2}")
+            print(f"   Error output: {e2.stderr if hasattr(e2, 'stderr') else ''}")
+            sys.exit(1)
 
 def create_yolox_configs():
     """Create necessary YOLOX configuration files"""
@@ -330,14 +343,16 @@ def verify_setup():
     
     print("\n🔍 Verifying YOLOX setup...")
     
-    # Check PyTorch installation first
+    # Check PyTorch installation and device
     try:
         import torch
         print(f"✅ PyTorch imported successfully: {torch.__version__}")
         if torch.cuda.is_available():
-            print(f"   CUDA available: {torch.cuda.get_device_name(0)}")
+            print(f"   Device: CUDA ({torch.cuda.get_device_name(0)})")
+        elif getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
+            print("   Device: MPS (Apple Silicon)")
         else:
-            print("   Running on CPU")
+            print("   Device: CPU")
     except ImportError as e:
         print(f"❌ Error importing PyTorch: {e}")
         print("   PyTorch installation failed. Please follow manual steps above.")
