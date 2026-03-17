@@ -156,3 +156,6 @@ config/
 
 #Exclude exps directory
 train_yolox/exps/
+ralph_artifacts/
+train_yolox/ralph_artifacts/
+train_yolox/ralph_state.json

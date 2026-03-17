@@ -19,7 +19,7 @@ cd /data/code/image-detector/train_yolox/
 
 - **Model**: YOLOX-Small (balanced speed/accuracy)
 - **Input Size**: 640x640 pixels (fixed)
-- **Training**: GPU-accelerated with CUDA support
+- **Training**: GPU (CUDA on Linux, MPS on Apple Silicon) or CPU
 - **Export**: ONNX format for mobile deployment
 - **Dataset**: COCO format (converted from YOLO format)
 - **Environment**: Isolated `yolox` virtual environment
@@ -82,9 +82,9 @@ This script will:
 
 **Environment Requirements:**
 - **Python**: 3.7+ (3.11 recommended)
-- **CUDA**: Required for GPU training
+- **GPU**: CUDA on Linux; MPS (Apple Silicon) or CPU on macOS
 - **Dependencies**: All requirements automatically installed via `requirements_yolox.txt`
-- **PyTorch**: Automatically installed first during setup (required for YOLOX compilation)
+- **PyTorch**: Automatically installed first during setup
 
 ### Step 2: Data Preparation
 
@@ -337,3 +337,65 @@ YOLOX configurations are **dynamically created** during data preparation based o
 - `classes.txt` contains "probe" → creates `exps/yolox_s_probe.py`
 - `classes.txt` contains "circle" → creates `exps/yolox_s_circle.py`
 - `classes.txt` contains "square" → creates `exps/yolox_s_square.py`
+
+## Remote training on Mac mini (Ralph loop)
+
+The pipeline can run training **remotely** on an Apple Silicon Mac mini over SSH, with an infinite orchestration loop ("Ralph loop") that syncs code and data, runs training, and pulls artifacts back to the local (x86 Linux) machine.
+
+### Canonical runtime root and contract
+
+- **Runtime root**: `train_yolox/`. All training and loop commands assume this as the working directory (see [train_yolox/CONTRACT.md](train_yolox/CONTRACT.md)).
+- **Canonical train entry**: `python scripts/run_train.py --exp yolox_s_marker` (from `train_yolox/`). Supports CUDA (Linux), MPS (Apple Silicon), or CPU.
+- **Layout check**: `python scripts/ensure_layout.py --exp yolox_s_marker`
+- **Device smoke test**: `python scripts/smoke_device.py` or `python scripts/smoke_device.py --json`
+
+### Running the Ralph loop (from local x86 Linux)
+
+1. **Configure the remote host**
+   - Copy `train_yolox/config/remote.example.yaml` to `train_yolox/config/remote.yaml`.
+   - Set `ssh_target` (e.g. `user@mac-mini.local`), `remote.repo_root`, and optionally `remote.venv_path`, `local.artifacts_dir`.
+   - Ensure SSH key-based login works: `ssh <ssh_target> true`
+
+2. **Run the loop**
+   ```bash
+   cd train_yolox/
+   python scripts/ralph_loop.py
+   ```
+   - **One iteration**: `python scripts/ralph_loop.py --once`
+   - **Dry run** (preflight + print config): `python scripts/ralph_loop.py --dry-run`
+   - **Resume from a stage**: `python scripts/ralph_loop.py --from-stage sync_code`
+
+3. **What each iteration does**
+   - The loop only handles transitions/retries/state.
+   - Each stage is a standalone executable script in `train_yolox/scripts/ralph/stages/` with its own validation and structured JSON result.
+   - **preflight_local**: Checks local `exps/`, `scripts/`, dataset source.
+   - **ssh_connect**: Verifies SSH and remote writable path.
+   - **sync_code**: Rsyncs `train_yolox` to remote (excludes `.git`, `YOLOX`, venv); writes revision marker.
+   - **ensure_env**: On remote: creates venv if needed, clones YOLOX (pinned), installs PyTorch and YOLOX.
+   - **sync_data**: Rsyncs `data/` and (if present) `YOLOX/datasets/` to remote.
+   - **smoke_device**: Runs `scripts/smoke_device.py` on remote (PyTorch + device).
+   - **smoke_train**: Runs one short training epoch on remote to verify paths/device.
+   - **full_train**: Runs full training on remote inside a tmux session (survives SSH disconnect).
+   - **verify_outputs**: Confirms remote checkpoint directory and `.pth` files exist.
+   - **pull_artifacts**: Rsyncs `YOLOX_outputs/<exp>/` and `models/` from remote to `local.artifacts_dir/iter_<N>/`.
+
+   Each stage has a clear success check; the loop does not advance past a failed stage until retries are exhausted, then it sleeps and starts the next iteration from the beginning.
+
+### Loop semantics and state
+
+- **State file**: `train_yolox/ralph_state.json` stores current iteration, stage results, last error, and `pending_feedback` for failed stages.
+- **Retries**: Each stage is retried up to `loop.max_stage_retries` (default 2). After a stage fails all retries, the loop sleeps `loop.sleep_after_success` seconds and starts a **new** iteration (all stages from the top).
+- **Feedback handoff to agent**: on failed stage exhaustion, loop writes `pending_feedback` and runs `loop.agent_repair_command` (if configured), passing full error context (`RALPH_FAILURE_JSON`, `RALPH_STAGE_ERROR`, `RALPH_STAGE_SCRIPT`, etc.). The repair agent can patch the stage script before the next iteration.
+- **Resume**: Use `--from-stage <stage>` to skip earlier stages for the **next** iteration only (e.g. after fixing SSH, resume from `sync_code`).
+
+### Failure and recovery
+
+| Situation | Action |
+|-----------|--------|
+| SSH or network failure | Fix connectivity; loop will retry on next iteration. Or run `--from-stage ssh_connect` after fixing. |
+| Remote disk full | Free space on Mac mini; re-run or `--from-stage sync_code`. |
+| YOLOX or PyTorch error on remote | SSH in and run `python scripts/smoke_device.py` and `python scripts/run_train.py --exp yolox_s_marker --epochs 1`; fix env; then re-run loop. |
+| Training timeout (e.g. 2 h poll) | Increase polling in `ralph_loop.py` or run training manually in tmux on remote and then run loop with `--from-stage verify_outputs` after training finishes. |
+| Stale state | Delete or edit `ralph_state.json` to reset iteration or clear last_error. |
+
+See [train_yolox/config/REMOTE_CONTRACT.md](train_yolox/config/REMOTE_CONTRACT.md) for sync strategy, artifact layout, and SSH contract.
