@@ -196,12 +196,12 @@ python src/yolox_train.py --data-dir YOLOX/datasets/probe_dataset --epochs 50 --
 #### Test with PyTorch Checkpoint
 
 ```bash
-source yolox/bin/activate
+source .venv/bin/activate
 # Test with PyTorch checkpoint
 python src/yolox_test.py \
-  --model YOLOX/YOLOX_outputs/yolox_s_circle/best_ckpt.pth \
-  --image YOLOX/datasets/probe_dataset/test/images/IMG_0199.JPG \
-  --confidence 0.3 --show
+  --model YOLOX/YOLOX_outputs/yolox_s_marker/best_ckpt.pth \
+  --image YOLOX/datasets/marker_dataset/test/images/IMG_0199.JPG \
+  --confidence 0.3 --exp_name yolox_s_marker
 ```
 
 #### Test with ONNX Model

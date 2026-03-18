@@ -118,11 +118,14 @@ def main():
     if device != "cuda":
         env["YOLOX_DEVICE"] = device
     env.pop("PYTORCH_CUDA_ALLOC_CONF", None) if device != "cuda" else None
+    # Subprocess runs YOLOX/tools/train.py which loads exp file; exp files use "from exps.xxx import ..."
+    env["PYTHONPATH"] = _ROOT + (os.pathsep + env.get("PYTHONPATH", "")) if env.get("PYTHONPATH") else _ROOT
 
-    # Verify dataset via exp (optional: load exp and call verify_dataset_config)
-    sys.path.insert(0, os.path.join(_ROOT, "exps"))
+    # Verify dataset via exp (optional: load exp and call verify_dataset_config).
+    # Insert _ROOT (train_yolox) so "exps" is a package and exp files can use "from exps.xxx import ...".
+    sys.path.insert(0, _ROOT)
     try:
-        exp_module = __import__(args.exp, fromlist=["Exp"])
+        exp_module = __import__("exps." + args.exp, fromlist=["Exp"])
         exp = exp_module.Exp()
         _ensure_smoke_placeholder(exp)
         if hasattr(exp, "verify_dataset_config"):
@@ -131,8 +134,8 @@ def main():
         print(f"Dataset verification failed: {e}", file=sys.stderr)
         sys.exit(1)
     finally:
-        if os.path.join(_ROOT, "exps") in sys.path:
-            sys.path.remove(os.path.join(_ROOT, "exps"))
+        if _ROOT in sys.path:
+            sys.path.remove(_ROOT)
 
     # Build training command: run from YOLOX dir, pass absolute path to exp file
     exp_file = os.path.abspath(f"exps/{args.exp}.py")

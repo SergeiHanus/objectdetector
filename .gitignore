@@ -159,3 +159,6 @@ train_yolox/exps/
 ralph_artifacts/
 train_yolox/ralph_artifacts/
 train_yolox/ralph_state.json
+
+# Cursor project-local skills (keep uncommitted)
+.cursor/skills/

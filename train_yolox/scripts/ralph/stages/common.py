@@ -111,7 +111,7 @@ def rsync_to_remote(cfg: dict, local_path: str, remote_path: str, excludes: list
     dest = f"{target}:{remote_path}"
     key = cfg.get("ssh_key_path")
     ssh_cmd = f"ssh -i {key}" if key and os.path.isfile(key) else "ssh"
-    cmd = ["rsync", "-az", "--timeout=30", "-e", ssh_cmd]
+    cmd = ["rsync", "-az", "--timeout=1800", "-e", ssh_cmd]
     for ex in excludes or []:
         cmd.append(f"--exclude={ex}")
     cmd.append(local_path.rstrip("/") + "/")
@@ -131,7 +131,7 @@ def rsync_from_remote(cfg: dict, remote_path: str, local_path: str) -> tuple[boo
     Path(local_path).mkdir(parents=True, exist_ok=True)
     try:
         r = subprocess.run(
-            ["rsync", "-az", "--timeout=60", "-e", ssh_cmd, src, local_path.rstrip("/") + "/"],
+            ["rsync", "-az", "--timeout=1800", "-e", ssh_cmd, src, local_path.rstrip("/") + "/"],
             capture_output=True,
             text=True,
             timeout=600,
@@ -177,3 +177,24 @@ def stage_fail(message: str, details: dict | None = None) -> int:
         payload["details"] = details
     print(json.dumps(payload, ensure_ascii=True))
     return 1
+
+
+def ensure_uv(cfg: dict, remote_root: str) -> str:
+    """Ensure uv is available on remote. Returns a shell fragment exporting PATH so uv is resolvable."""
+    uv_dir = cfg.get("remote", {}).get("uv_install_dir") or f"{remote_root}/.local"
+    uv_bin = f"{uv_dir}/bin"
+    path_export = f"export PATH=\"$PATH:{uv_dir}:{uv_bin}\""
+    check = f"cd {remote_root} && ({path_export}; command -v uv >/dev/null 2>&1 && uv --version) || true"
+    ok, out, _ = ssh_run(cfg, check, timeout=10)
+    if ok and out and "uv" in (out or ""):
+        return path_export
+
+    install = (
+        f"cd {remote_root} && mkdir -p {uv_dir} && "
+        "curl -LsSf https://astral.sh/uv/install.sh | "
+        f"env UV_NO_MODIFY_PATH=1 UV_UNMANAGED_INSTALL={uv_dir} sh"
+    )
+    ok_install, _, err_install = ssh_run(cfg, install, timeout=120)
+    if not ok_install:
+        raise RuntimeError(f"uv install failed: {err_install or 'unknown'}")
+    return path_export

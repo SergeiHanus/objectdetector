@@ -24,14 +24,17 @@ STAGE_SCRIPTS_DIR = SCRIPT_DIR / "ralph" / "stages"
 STAGES: list[tuple[str, str]] = [
     ("preflight_local", "01_preflight_local.py"),
     ("ssh_connect", "02_ssh_connect.py"),
+    ("ensure_uv_python", "02b_ensure_uv_python.py"),
     ("sync_code", "03_sync_code.py"),
     ("ensure_env", "04_ensure_env.py"),
     ("sync_data", "05_sync_data.py"),
     ("prepare_data", "05b_prepare_data.py"),
+    ("validate_dataset_layout", "05c_validate_dataset_layout.py"),
     ("smoke_device", "06_smoke_device.py"),
     ("smoke_train", "07_smoke_train.py"),
     ("full_train", "08_full_train.py"),
     ("verify_outputs", "09_verify_outputs.py"),
+    ("yolox_test", "09b_yolox_test.py"),
     ("pull_artifacts", "10_pull_artifacts.py"),
 ]
 STAGE_ORDER = [name for name, _ in STAGES]
